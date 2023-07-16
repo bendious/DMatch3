@@ -7,6 +7,9 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Image))]
 public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+	[SerializeField] private Sprite[] m_sprites;
+
+
 	private const float m_lerpEpsilon = 1.0f;
 	private const float m_lerpEpsilonSq = m_lerpEpsilon * m_lerpEpsilon;
 	private const float m_lerpTimePerDistance = 0.001f;
@@ -27,8 +30,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		m_size = GetComponent<RectTransform>().rect.size;
 		m_homePos = transform.position;
 
-		// TODO: assign random sprite/type
-		GetComponent<Image>().color = new Color(Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f));
+		GetComponent<Image>().sprite = m_sprites[Random.Range(0, m_sprites.Length)];
 	}
 
 	public void OnPointerEnter(PointerEventData eventData)

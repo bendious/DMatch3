@@ -51,6 +51,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bcf8a12fcb113e459cf4afa96ae144a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_sprites:
+  - {fileID: 7482667652216324306, guid: 48e93eef0688c4a259cb0eddcd8661f7, type: 3}
+  - {fileID: -2413806693520163455, guid: ebe73ca9363db456bacf42c025bb4847, type: 3}
+  - {fileID: 21300000, guid: 748ae8b33df036b46a86e0387f1602cf, type: 3}
 --- !u!222 &1297778930733149339
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -79,7 +83,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 48e93eef0688c4a259cb0eddcd8661f7, type: 3}
+  m_Sprite: {fileID: 0}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
