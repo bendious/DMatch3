@@ -245,7 +245,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_gridPrefab: {fileID: 8577628921514829157, guid: f7859f6ba679be94596540260873f3a6, type: 3}
-  m_gridSizeMin: 2
+  m_gridSizeMin: 3
   m_gridSizeMax: 5
 --- !u!4 &537119783
 Transform:

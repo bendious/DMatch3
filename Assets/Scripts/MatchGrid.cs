@@ -18,7 +18,7 @@ public class MatchGrid : MonoBehaviour
 
 	public void SetSize(int width, int height)
 	{
-		Debug.Assert(m_slots == null);
+		Debug.Assert(m_slots == null && width >= 3 && height >= 3);
 		m_width = width;
 		m_height = height;
 	}
@@ -41,7 +41,7 @@ public class MatchGrid : MonoBehaviour
 			m_slots[i] = new GridSlot[m_height];
 			for(int j = 0; j < m_height; j++)
 			{
-				m_slots[i][j] = Instantiate(m_slotPrefab, cornerPos + new Vector3(i * m_slotWidth, j * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
+				AddNewInSlot(i, j, cornerPos);
 			}
 		}
 	}
@@ -71,6 +71,10 @@ public class MatchGrid : MonoBehaviour
 
 		// notify slots
 		m_slots[coordStart.x][coordStart.y].SwapWith(m_slots[coordEnd.x][coordEnd.y]);
+
+		// TODO: wait for animation
+		// TODO: check for matches
+
 		return true;
 	}
 
@@ -82,8 +86,10 @@ public class MatchGrid : MonoBehaviour
 		return new Vector2Int((int)(offset.x / m_slotWidth), (int)(offset.y / m_slotHeight));
 	}
 
-	private bool IsValidCoord(Vector2Int coord)
+	private bool IsValidCoord(Vector2Int coord) => coord.x >= 0 && coord.y >= 0 && coord.x < m_width && coord.y < m_height;
+
+	private void AddNewInSlot(int x, int y, Vector3 cornerPos)
 	{
-		return coord.x >= 0 && coord.y >= 0 && coord.x < m_width && coord.y < m_height;
+		m_slots[x][y] = Instantiate(m_slotPrefab, cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
 	}
 }

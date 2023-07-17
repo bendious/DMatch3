@@ -4,7 +4,7 @@ using UnityEngine;
 public class DMatch3 : MonoBehaviour
 {
 	[SerializeField] private MatchGrid m_gridPrefab;
-	[SerializeField] private int m_gridSizeMin = 2;
+	[SerializeField] private int m_gridSizeMin = 3;
 	[SerializeField] private int m_gridSizeMax = 5;
 
 

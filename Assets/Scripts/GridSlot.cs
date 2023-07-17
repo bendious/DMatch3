@@ -9,10 +9,12 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
 	[SerializeField] private Sprite[] m_sprites;
 
+	[SerializeField] private float m_bounceScalarBase = 0.5f;
+	[SerializeField] private float m_bounceScalarVariance = 0.1f;
 
-	private const float m_lerpEpsilon = 1.0f;
-	private const float m_lerpEpsilonSq = m_lerpEpsilon * m_lerpEpsilon;
-	private const float m_lerpTimePerDistance = 0.001f;
+	[SerializeField] private float m_lerpEpsilon = 1.0f;
+	[SerializeField] private float m_lerpTimePerDistance = 0.001f;
+	private float m_lerpEpsilonSq;
 
 
 	private MatchGrid m_grid;
@@ -25,10 +27,14 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	private void Start()
 	{
+		m_lerpEpsilonSq = m_lerpEpsilon * m_lerpEpsilon;
+
 		m_grid = GetComponentInParent<MatchGrid>();
 
 		m_size = GetComponent<RectTransform>().rect.size;
-		m_homePos = transform.position;
+		Vector3 posOrig = transform.position;
+		transform.position += new Vector3(0.0f, Screen.height);
+		SetHomePosition(posOrig, false);
 
 		GetComponent<Image>().sprite = m_sprites[Random.Range(0, m_sprites.Length)];
 	}
@@ -61,38 +67,50 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	public void OnEndDrag(PointerEventData eventData)
 	{
-		StartCoroutine(LerpHome());
+		StartCoroutine(LerpHome(true));
 	}
 
 	public void SwapWith(GridSlot replaceSlot)
 	{
 		Vector3 temp = m_homePos;
-		SetHomePosition(replaceSlot.m_homePos);
-		replaceSlot.SetHomePosition(temp);
+		SetHomePosition(replaceSlot.m_homePos, true);
+		replaceSlot.SetHomePosition(temp, true);
 	}
 
-	private void SetHomePosition(Vector3 position)
+	private void SetHomePosition(Vector3 position, bool smooth)
 	{
 		m_homePos = position;
-		StartCoroutine(LerpHome());
+		StartCoroutine(LerpHome(smooth));
 	}
 
-	private IEnumerator LerpHome()
+	private IEnumerator LerpHome(bool smooth)
 	{
+		Debug.Assert(smooth || (transform.position.x == m_homePos.x && transform.position.z == m_homePos.z), "Non-smooth lerping must be purely vertical.");
 		if (m_lerping)
 		{
 			yield break;
 		}
 		m_lerping = true;
 
-		// TODO: estimate release velocity?
-		float velX = 0.0f;
-		float velY = 0.0f;
+		Vector3 vel = Vector3.zero; // TODO: estimate release velocity?
 		float lerpTime = m_lerpTimePerDistance * (m_homePos - transform.position).magnitude;
 
-		while ((transform.position - m_homePos).sqrMagnitude > m_lerpEpsilonSq)
+		while ((transform.position - m_homePos).sqrMagnitude > m_lerpEpsilonSq || vel.magnitude > m_lerpEpsilon)
 		{
-			transform.position = new(Mathf.SmoothDamp(transform.position.x, m_homePos.x, ref velX, lerpTime), Mathf.SmoothDamp(transform.position.y, m_homePos.y, ref velY, lerpTime));
+			if (smooth)
+			{
+				transform.position = new(Mathf.SmoothDamp(transform.position.x, m_homePos.x, ref vel.x, lerpTime), Mathf.SmoothDamp(transform.position.y, m_homePos.y, ref vel.y, lerpTime));
+			}
+			else
+			{
+				vel += (transform.position.y > m_homePos.y) ? (Vector3)Physics2D.gravity : -(Vector3)Physics2D.gravity;
+				transform.position += vel * Time.deltaTime; // TODO: fixed timestep?
+				if (transform.position.y <= m_homePos.y)
+				{
+					vel = m_bounceScalarBase * Random.Range(1.0f - m_bounceScalarVariance, 1.0f + m_bounceScalarVariance) * new Vector3(vel.x, Mathf.Abs(vel.y));
+					// TODO: bounce SFX
+				}
+			}
 
 			yield return null;
 		}
