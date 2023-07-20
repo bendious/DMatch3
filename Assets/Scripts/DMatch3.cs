@@ -1,6 +1,8 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 
+[RequireComponent(typeof(Canvas), typeof(GraphicRaycaster))]
 public class DMatch3 : MonoBehaviour
 {
 	[SerializeField] private MatchGrid m_gridPrefab;
@@ -13,7 +15,17 @@ public class DMatch3 : MonoBehaviour
 
 	private void Start()
 	{
-		m_gridCurrent = Instantiate(m_gridPrefab);
+		Restart();
+	}
+
+
+	public void Restart()
+	{
+		if (m_gridCurrent != null)
+		{
+			Destroy(m_gridCurrent.gameObject);
+		}
+		m_gridCurrent = Instantiate(m_gridPrefab, gameObject.transform);
 		m_gridCurrent.SetSize(Random.Range(m_gridSizeMin, m_gridSizeMax + 1), Random.Range(m_gridSizeMin, m_gridSizeMax + 1));
 	}
 }
