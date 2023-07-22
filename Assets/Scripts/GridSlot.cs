@@ -15,6 +15,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	[SerializeField] private float m_lerpEpsilon = 1.0f;
 	[SerializeField] private float m_lerpTimePerDistance = 0.001f;
 	private float m_lerpEpsilonSq;
+	[SerializeField] private float m_despawnAccel = 0.2f;
 
 
 	private MatchGrid m_grid;
@@ -87,6 +88,8 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		return StartCoroutine(LerpHome(smooth));
 	}
 
+	public void StartDespawn() => StartCoroutine(Despawn());
+
 
 	private IEnumerator LerpHome(bool smooth)
 	{
@@ -122,5 +125,18 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		transform.position = m_homePos;
 
 		m_lerping = false;
+	}
+
+	private IEnumerator Despawn()
+	{
+		float vel = 0.0f;
+		while (transform.localScale.x > 0.0f) // TODO: don't assume uniform scaling?
+		{
+			vel += m_despawnAccel * Time.deltaTime;
+			float newScale = Mathf.Max(0.0f, transform.localScale.x - vel);
+			transform.localScale = new(newScale, newScale, newScale);
+			yield return null;
+		}
+		Destroy(gameObject);
 	}
 }

@@ -8,6 +8,7 @@ public class MatchGrid : MonoBehaviour
 	const int m_matchLen = 3;
 
 	[SerializeField] private GridSlot m_slotPrefab;
+	[SerializeField] private TMPro.TMP_Text m_scoreText;
 	[SerializeField] private float m_padding = 10.0f;
 	[SerializeField] private float m_recursiveMatchDelay = 0.5f;
 
@@ -16,10 +17,11 @@ public class MatchGrid : MonoBehaviour
 
 	private float m_slotWidth;
 	private float m_slotHeight;
-	private Vector3 m_cornerOffset;
+	private Vector3 m_cornerPos; // TODO: don't assume the root position will never change?
 
 	private GridSlot[][] m_slots;
 	private bool m_isProcessing = false;
+	private int m_score = 0;
 
 
 	public void SetSize(int width, int height)
@@ -38,8 +40,7 @@ public class MatchGrid : MonoBehaviour
 		m_slotHeight = rect.height + m_padding;
 		float totalWidth = m_slotWidth * m_width;
 		float totalHeight = m_slotHeight * m_height;
-		m_cornerOffset = new Vector3(totalWidth * -0.5f, totalHeight * -0.5f);
-		Vector3 cornerPos = gameObject.transform.position + m_cornerOffset;
+		m_cornerPos = gameObject.transform.position + new Vector3((m_slotWidth - totalWidth) * 0.5f, (m_slotHeight - totalHeight) * 0.5f);
 
 		m_slots = new GridSlot[m_width][];
 		for (int i = 0; i < m_width; i++)
@@ -47,7 +48,7 @@ public class MatchGrid : MonoBehaviour
 			m_slots[i] = new GridSlot[m_height];
 			for (int j = 0; j < m_height; j++)
 			{
-				AddNewInSlot(i, j, cornerPos);
+				AddNewInSlot(i, j);
 			}
 		}
 
@@ -107,19 +108,18 @@ public class MatchGrid : MonoBehaviour
 
 	private Vector2Int CoordForPosition(Vector3 position)
 	{
-		Vector3 cornerPos = gameObject.transform.position + m_cornerOffset;
-		Vector3 offset = position - cornerPos;
+		Vector3 offset = position - m_cornerPos;
 		return new Vector2Int((int)(offset.x / m_slotWidth), (int)(offset.y / m_slotHeight));
 	}
 
-	private Vector3 PositionForCoord(int x, int y) => gameObject.transform.position + m_cornerOffset + new Vector3(x * m_slotWidth, y * m_slotHeight);
+	private Vector3 PositionForCoord(int x, int y) => m_cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight);
 
 	private bool IsValidCoord(Vector2Int coord) => coord.x >= 0 && coord.y >= 0 && coord.x < m_width && coord.y < m_height;
 
-	private void AddNewInSlot(int x, int y, Vector3 cornerPos)
+	private void AddNewInSlot(int x, int y)
 	{
 		Debug.Assert(m_slots[x][y] == null);
-		m_slots[x][y] = Instantiate(m_slotPrefab, cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
+		m_slots[x][y] = Instantiate(m_slotPrefab, m_cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
 	}
 
 	private IEnumerator ProcessMatches()
@@ -174,16 +174,20 @@ public class MatchGrid : MonoBehaviour
 			}
 			else
 			{
-				Destroy(m_slots[coord.x][coord.y].gameObject);
+				m_slots[coord.x][coord.y].StartDespawn();
 				m_slots[coord.x][coord.y] = null;
 			}
 		}
 
-		// trigger "falling"
+		// handle removed slots
 		if (slotsToRemove.Count > 0)
 		{
+			// increment score
+			m_score += slotsToRemove.Count; // NOTE that this purposely counts slots multiple times if they are involved in multiple matches
+			m_scoreText.text = m_score.ToString();
+
+			// trigger "falling"
 			List<Coroutine> coroutines = new();
-			Vector3 cornerPos = gameObject.transform.position + m_cornerOffset; // TODO: helper function?
 			for (int i = 0; i < m_width; ++i)
 			{
 				int numHoles = 0;
@@ -200,7 +204,7 @@ public class MatchGrid : MonoBehaviour
 				}
 				for (int k = 1; k <= numHoles; ++k)
 				{
-					AddNewInSlot(i, m_height - k, cornerPos);
+					AddNewInSlot(i, m_height - k);
 				}
 			}
 
