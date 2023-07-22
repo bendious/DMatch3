@@ -18,8 +18,9 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 
 	private MatchGrid m_grid;
-
 	private Vector2 m_size;
+	private int m_spriteIdx;
+
 	private Vector3 m_homePos;
 	private Vector3 m_dragStartPos;
 	private bool m_lerping = false;
@@ -36,7 +37,8 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		transform.position += new Vector3(0.0f, Screen.height);
 		SetHomePosition(posOrig, false);
 
-		GetComponent<Image>().sprite = m_sprites[Random.Range(0, m_sprites.Length)];
+		m_spriteIdx = Random.Range(0, m_sprites.Length);
+		GetComponent<Image>().sprite = m_sprites[m_spriteIdx];
 	}
 
 	public void OnPointerEnter(PointerEventData eventData)
@@ -77,11 +79,14 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		replaceSlot.SetHomePosition(temp, true);
 	}
 
-	private void SetHomePosition(Vector3 position, bool smooth)
+	public bool Matches(GridSlot other) => other != null && m_spriteIdx == other.m_spriteIdx;
+
+	public Coroutine SetHomePosition(Vector3 position, bool smooth)
 	{
 		m_homePos = position;
-		StartCoroutine(LerpHome(smooth));
+		return StartCoroutine(LerpHome(smooth));
 	}
+
 
 	private IEnumerator LerpHome(bool smooth)
 	{

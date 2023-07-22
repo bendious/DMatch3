@@ -1,10 +1,15 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 
 public class MatchGrid : MonoBehaviour
 {
+	const int m_matchLen = 3;
+
 	[SerializeField] private GridSlot m_slotPrefab;
 	[SerializeField] private float m_padding = 10.0f;
+	[SerializeField] private float m_recursiveMatchDelay = 0.5f;
 
 	private int m_width = 3;
 	private int m_height = 3;
@@ -14,6 +19,7 @@ public class MatchGrid : MonoBehaviour
 	private Vector3 m_cornerOffset;
 
 	private GridSlot[][] m_slots;
+	private bool m_isProcessing = false;
 
 
 	public void SetSize(int width, int height)
@@ -39,11 +45,13 @@ public class MatchGrid : MonoBehaviour
 		for (int i = 0; i < m_width; i++)
 		{
 			m_slots[i] = new GridSlot[m_height];
-			for(int j = 0; j < m_height; j++)
+			for (int j = 0; j < m_height; j++)
 			{
 				AddNewInSlot(i, j, cornerPos);
 			}
 		}
+
+		// TODO: check for initial matches after falling is finished
 	}
 
 
@@ -53,29 +61,47 @@ public class MatchGrid : MonoBehaviour
 		return IsValidCoord(coord) ? m_slots[coord.x][coord.y] : null;
 	}
 
-	public bool Swap(Vector3 homePos, Vector2 diff)
+	public void Swap(Vector3 homePos, Vector2 diff)
 	{
-		Vector2Int coordStart = CoordForPosition(homePos);
-		Vector2Int coordDiff = Mathf.Abs(diff.x) >= Mathf.Abs(diff.y) ? new Vector2Int((int)Mathf.Sign(diff.x), 0) : new Vector2Int(0, (int)Mathf.Sign(diff.y));
+		if (!m_isProcessing)
+		{
+			StartCoroutine(SwapInternal(CoordForPosition(homePos), Mathf.Abs(diff.x) >= Mathf.Abs(diff.y) ? new Vector2Int((int)Mathf.Sign(diff.x), 0) : new Vector2Int(0, (int)Mathf.Sign(diff.y)), true));
+		}
+	}
+
+
+	private IEnumerator SwapInternal(Vector2Int coordStart, Vector2Int coordDiff, bool smooth)
+	{
 		Vector2Int coordEnd = coordStart + coordDiff;
 
 		if (!IsValidCoord(coordEnd))
 		{
-			return false;
+			yield break;
+		}
+
+		// notify slots
+		List<Coroutine> coroutines = new();
+		if (m_slots[coordStart.x][coordStart.y] != null)
+		{
+			coroutines.Add(m_slots[coordStart.x][coordStart.y].SetHomePosition(PositionForCoord(coordEnd.x, coordEnd.y), smooth));
+		}
+		if (m_slots[coordEnd.x][coordEnd.y] != null)
+		{
+			coroutines.Add(m_slots[coordEnd.x][coordEnd.y].SetHomePosition(PositionForCoord(coordStart.x, coordStart.y), smooth));
 		}
 
 		// swap internally
-		GridSlot tmp = m_slots[coordStart.x][coordStart.y];
-		m_slots[coordStart.x][coordStart.y] = m_slots[coordEnd.x][coordEnd.y];
-		m_slots[coordEnd.x][coordEnd.y] = tmp;
+		(m_slots[coordEnd.x][coordEnd.y], m_slots[coordStart.x][coordStart.y]) = (m_slots[coordStart.x][coordStart.y], m_slots[coordEnd.x][coordEnd.y]);
 
-		// notify slots
-		m_slots[coordStart.x][coordStart.y].SwapWith(m_slots[coordEnd.x][coordEnd.y]);
+		foreach (Coroutine c in coroutines)
+		{
+			yield return c;
+		}
 
-		// TODO: wait for animation
-		// TODO: check for matches
-
-		return true;
+		if (smooth) // NOTE that this corresponds to when triggered by the player rather than by recursive matches; ProcessMatches() contains a delayed recursive invocation that takes care of that
+		{
+			StartCoroutine(ProcessMatches());
+		}
 	}
 
 
@@ -86,10 +112,107 @@ public class MatchGrid : MonoBehaviour
 		return new Vector2Int((int)(offset.x / m_slotWidth), (int)(offset.y / m_slotHeight));
 	}
 
+	private Vector3 PositionForCoord(int x, int y) => gameObject.transform.position + m_cornerOffset + new Vector3(x * m_slotWidth, y * m_slotHeight);
+
 	private bool IsValidCoord(Vector2Int coord) => coord.x >= 0 && coord.y >= 0 && coord.x < m_width && coord.y < m_height;
 
 	private void AddNewInSlot(int x, int y, Vector3 cornerPos)
 	{
+		Debug.Assert(m_slots[x][y] == null);
 		m_slots[x][y] = Instantiate(m_slotPrefab, cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
+	}
+
+	private IEnumerator ProcessMatches()
+	{
+		m_isProcessing = true;
+
+		// check for matches
+		// TODO: detect extra-long and intersecting matches
+		List<Vector2Int> slotsToRemove = new();
+		for (int i = 0; i < m_width; ++i)
+		{
+			for (int j = 0; j < m_height; ++j)
+			{
+				Debug.Assert(m_slots[i][j] != null);
+
+				// iterate horizontally/vertically
+				int matchCountH = 1;
+				int matchCountV = 1;
+				while (i + matchCountH < m_width && m_slots[i][j].Matches(m_slots[i + matchCountH][j]))
+				{
+					++matchCountH;
+				}
+				while (j + matchCountV < m_height && m_slots[i][j].Matches(m_slots[i][j + matchCountV]))
+				{
+					++matchCountV;
+				}
+
+				// mark for removal
+				if (matchCountH >= m_matchLen)
+				{
+					for (int a = 0; a < matchCountH; ++a)
+					{
+						slotsToRemove.Add(new Vector2Int(i + a, j));
+					}
+				}
+				if (matchCountV >= m_matchLen)
+				{
+					for (int b = 0; b < matchCountV; ++b)
+					{
+						slotsToRemove.Add(new Vector2Int(i, j + b));
+					}
+				}
+			}
+		}
+
+		// remove matching slots
+		foreach (Vector2Int coord in slotsToRemove)
+		{
+			if (m_slots[coord.x][coord.y] == null)
+			{
+				// TODO: this slot must've been involved in intersecting matches; replace w/ special slot item?
+			}
+			else
+			{
+				Destroy(m_slots[coord.x][coord.y].gameObject);
+				m_slots[coord.x][coord.y] = null;
+			}
+		}
+
+		// trigger "falling"
+		if (slotsToRemove.Count > 0)
+		{
+			List<Coroutine> coroutines = new();
+			Vector3 cornerPos = gameObject.transform.position + m_cornerOffset; // TODO: helper function?
+			for (int i = 0; i < m_width; ++i)
+			{
+				int numHoles = 0;
+				for (int j = 0; j < m_height; ++j)
+				{
+					if (m_slots[i][j] == null)
+					{
+						++numHoles;
+					}
+					else if (numHoles > 0)
+					{
+						coroutines.Add(StartCoroutine(SwapInternal(new Vector2Int(i, j), new Vector2Int(0, -numHoles), false)));
+					}
+				}
+				for (int k = 1; k <= numHoles; ++k)
+				{
+					AddNewInSlot(i, m_height - k, cornerPos);
+				}
+			}
+
+			// once done, delay and check for more matches
+			foreach (Coroutine c in coroutines)
+			{
+				yield return c;
+			}
+			yield return new WaitForSeconds(m_recursiveMatchDelay);
+			yield return StartCoroutine(ProcessMatches());
+		}
+
+		m_isProcessing = false;
 	}
 }
