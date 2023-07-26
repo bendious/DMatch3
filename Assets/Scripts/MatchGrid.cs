@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 
@@ -8,12 +9,17 @@ public class MatchGrid : MonoBehaviour
 	const int m_matchLen = 3;
 
 	[SerializeField] private GridSlot m_slotPrefab;
+	[SerializeField] private Sprite[] m_sprites;
+	[SerializeField] private int m_spritesMin = 3; // TODO: base on grid size?
+	[SerializeField] private int m_spritesMax = 5;
 	[SerializeField] private TMPro.TMP_Text m_scoreText;
 	[SerializeField] private float m_padding = 10.0f;
 	[SerializeField] private float m_recursiveMatchDelay = 0.5f;
 
 	private int m_width = 3;
 	private int m_height = 3;
+
+	private Sprite[] m_spritesCurrent;
 
 	private float m_slotWidth;
 	private float m_slotHeight;
@@ -34,6 +40,8 @@ public class MatchGrid : MonoBehaviour
 
 	private void Start()
 	{
+		m_spritesCurrent = m_sprites.OrderBy(i => Random.value).Take(Random.Range(m_spritesMin, m_spritesMax)).ToArray();
+
 		RectTransform tf = m_slotPrefab.GetComponent<RectTransform>();
 		Rect rect = tf.rect;
 		m_slotWidth = rect.width + m_padding;
@@ -120,6 +128,7 @@ public class MatchGrid : MonoBehaviour
 	{
 		Debug.Assert(m_slots[x][y] == null);
 		m_slots[x][y] = Instantiate(m_slotPrefab, m_cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
+		m_slots[x][y].m_sprites = m_spritesCurrent;
 	}
 
 	private IEnumerator ProcessMatches()

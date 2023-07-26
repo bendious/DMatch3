@@ -7,7 +7,7 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Image))]
 public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-	[SerializeField] private Sprite[] m_sprites;
+	public Sprite[] m_sprites { private get; set; }
 
 	[SerializeField] private float m_bounceScalarBase = 0.5f;
 	[SerializeField] private float m_bounceScalarVariance = 0.1f;
