@@ -19,14 +19,16 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	[SerializeField] private float m_despawnAccel = 0.2f;
 
 
+	public bool IsLerping { get; private set; }
+	public bool ImagesLoaded { get; private set; }
+
+
 	private MatchGrid m_grid;
 	private Vector2 m_size;
 	private int m_spriteIdx;
 
 	private Vector3 m_homePos;
 	private Vector3 m_dragStartPos;
-	private bool m_lerping = false;
-
 
 	private void Start()
 	{
@@ -46,12 +48,12 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	public void OnPointerEnter(PointerEventData eventData)
 	{
-		// TODO: animate
+		// TODO: restart animation? grow?
 	}
 
 	public void OnPointerExit(PointerEventData eventData)
 	{
-		// TODO: stop animating
+		// TODO: pause animation? shrink?
 	}
 
 	public void OnBeginDrag(PointerEventData eventData)
@@ -96,11 +98,16 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	private IEnumerator LerpHome(bool smooth)
 	{
 		Debug.Assert(smooth || (transform.position.x == m_homePos.x && transform.position.z == m_homePos.z), "Non-smooth lerping must be purely vertical.");
-		if (m_lerping)
+		if (IsLerping)
 		{
 			yield break;
 		}
-		m_lerping = true;
+		IsLerping = true;
+
+		if (!ImagesLoaded)
+		{
+			yield return new WaitUntil(() => ImagesLoaded);
+		}
 
 		Vector3 vel = Vector3.zero; // TODO: estimate release velocity?
 		float lerpTime = m_lerpTimePerDistance * (m_homePos - transform.position).magnitude;
@@ -126,7 +133,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		}
 		transform.position = m_homePos;
 
-		m_lerping = false;
+		IsLerping = false;
 	}
 
 	private IEnumerator Animate(RawImage image, string sprite_filepath)
@@ -138,6 +145,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 			textureList = textureListLoaded;
 			image.GetComponent<RectTransform>().sizeDelta = new(width, height);
 		});
+		ImagesLoaded = true;
 
 		int i = 0;
 		WaitForSeconds wait = new(1.0f / 24.0f); // TODO: read from .gif?

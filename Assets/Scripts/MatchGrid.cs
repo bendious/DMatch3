@@ -60,7 +60,7 @@ public class MatchGrid : MonoBehaviour
 			}
 		}
 
-		// TODO: check for initial matches after falling is finished
+		StartCoroutine(DelayedProcessMatches());
 	}
 
 
@@ -129,6 +129,14 @@ public class MatchGrid : MonoBehaviour
 		Debug.Assert(m_slots[x][y] == null);
 		m_slots[x][y] = Instantiate(m_slotPrefab, m_cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
 		m_slots[x][y].m_spriteFilepaths = m_spriteFilepathsCurrent;
+	}
+
+	private IEnumerator DelayedProcessMatches()
+	{
+		m_isProcessing = true;
+		yield return new WaitUntil(() => m_slots.All(row => row.All(slot => slot.ImagesLoaded && !slot.IsLerping)));
+		yield return ProcessMatches();
+		m_isProcessing = false;
 	}
 
 	private IEnumerator ProcessMatches()
