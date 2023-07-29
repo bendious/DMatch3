@@ -4,6 +4,25 @@ using System.Linq;
 using UnityEngine;
 
 
+public static class ExtensionHelpers
+{
+	public static bool All<T>(this T[,] source, System.Func<T, bool> predicate)
+	{
+		for (int i = 0, n = source.GetLength(0); i < n; ++i)
+		{
+			for (int j = 0, m = source.GetLength(1); j < m; ++j)
+			{
+				if (!predicate(source[i, j]))
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+};
+
+
 public class MatchGrid : MonoBehaviour
 {
 	const int m_matchLen = 3;
@@ -22,10 +41,10 @@ public class MatchGrid : MonoBehaviour
 
 	private float m_slotWidth;
 	private float m_slotHeight;
-	private Vector3 m_cornerPos; // TODO: don't assume the root position will never change?
+	private Vector3 m_cornerPos; // TODO: don't assume the (local) position will never change?
 
 	private DMatch3 m_game;
-	private GridSlot[][] m_slots;
+	private GridSlot[,] m_slots;
 	private bool m_isProcessing = false;
 	private int m_score = 0;
 
@@ -50,12 +69,11 @@ public class MatchGrid : MonoBehaviour
 		m_slotHeight = rect.height + m_padding;
 		float totalWidth = m_slotWidth * m_width;
 		float totalHeight = m_slotHeight * m_height;
-		m_cornerPos = gameObject.transform.position + new Vector3((m_slotWidth - totalWidth) * 0.5f, (m_slotHeight - totalHeight) * 0.5f);
+		m_cornerPos = gameObject.transform.localPosition + new Vector3((m_slotWidth - totalWidth) * 0.5f, (m_slotHeight - totalHeight) * 0.5f);
 
-		m_slots = new GridSlot[m_width][];
+		m_slots = new GridSlot[m_width, m_height];
 		for (int i = 0; i < m_width; i++)
 		{
-			m_slots[i] = new GridSlot[m_height];
 			for (int j = 0; j < m_height; j++)
 			{
 				AddNewInSlot(i, j);
@@ -73,7 +91,7 @@ public class MatchGrid : MonoBehaviour
 	public GridSlot SlotAtPosition(Vector3 position)
 	{
 		Vector2Int coord = CoordForPosition(position);
-		return IsValidCoord(coord) ? m_slots[coord.x][coord.y] : null;
+		return IsValidCoord(coord) ? m_slots[coord.x, coord.y] : null;
 	}
 
 	public void Swap(Vector3 homePos, Vector2 diff)
@@ -96,17 +114,17 @@ public class MatchGrid : MonoBehaviour
 
 		// notify slots
 		List<Coroutine> coroutines = new();
-		if (m_slots[coordStart.x][coordStart.y] != null)
+		if (m_slots[coordStart.x, coordStart.y] != null)
 		{
-			coroutines.Add(m_slots[coordStart.x][coordStart.y].SetHomePosition(PositionForCoord(coordEnd.x, coordEnd.y), smooth));
+			coroutines.Add(m_slots[coordStart.x, coordStart.y].SetHomePosition(PositionForCoord(coordEnd.x, coordEnd.y), smooth));
 		}
-		if (m_slots[coordEnd.x][coordEnd.y] != null)
+		if (m_slots[coordEnd.x, coordEnd.y] != null)
 		{
-			coroutines.Add(m_slots[coordEnd.x][coordEnd.y].SetHomePosition(PositionForCoord(coordStart.x, coordStart.y), smooth));
+			coroutines.Add(m_slots[coordEnd.x, coordEnd.y].SetHomePosition(PositionForCoord(coordStart.x, coordStart.y), smooth));
 		}
 
 		// swap internally
-		(m_slots[coordEnd.x][coordEnd.y], m_slots[coordStart.x][coordStart.y]) = (m_slots[coordStart.x][coordStart.y], m_slots[coordEnd.x][coordEnd.y]);
+		(m_slots[coordEnd.x, coordEnd.y], m_slots[coordStart.x, coordStart.y]) = (m_slots[coordStart.x, coordStart.y], m_slots[coordEnd.x, coordEnd.y]);
 
 		foreach (Coroutine c in coroutines)
 		{
@@ -132,15 +150,17 @@ public class MatchGrid : MonoBehaviour
 
 	private void AddNewInSlot(int x, int y)
 	{
-		Debug.Assert(m_slots[x][y] == null);
-		m_slots[x][y] = Instantiate(m_slotPrefab, m_cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
-		m_slots[x][y].m_spriteFilepaths = m_spriteFilepathsCurrent;
+		Debug.Assert(m_slots[x, y] == null);
+		GridSlot newSlot = Instantiate(m_slotPrefab, gameObject.transform);
+		newSlot.transform.localPosition = PositionForCoord(x, y);
+		newSlot.m_spriteFilepaths = m_spriteFilepathsCurrent;
+		m_slots[x, y] = newSlot;
 	}
 
 	private IEnumerator DelayedProcessMatches()
 	{
 		m_isProcessing = true;
-		yield return new WaitUntil(() => m_slots.All(row => row.All(slot => slot.ImagesLoaded && !slot.IsLerping)));
+		yield return new WaitUntil(() => m_slots.All(slot => slot.ImagesLoaded && !slot.IsLerping));
 		yield return ProcessMatches();
 		m_isProcessing = false;
 	}
@@ -156,16 +176,16 @@ public class MatchGrid : MonoBehaviour
 		{
 			for (int j = 0; j < m_height; ++j)
 			{
-				Debug.Assert(m_slots[i][j] != null);
+				Debug.Assert(m_slots[i, j] != null);
 
 				// iterate horizontally/vertically
 				int matchCountH = 1;
 				int matchCountV = 1;
-				while (i + matchCountH < m_width && m_slots[i][j].Matches(m_slots[i + matchCountH][j]))
+				while (i + matchCountH < m_width && m_slots[i, j].Matches(m_slots[i + matchCountH, j]))
 				{
 					++matchCountH;
 				}
-				while (j + matchCountV < m_height && m_slots[i][j].Matches(m_slots[i][j + matchCountV]))
+				while (j + matchCountV < m_height && m_slots[i, j].Matches(m_slots[i, j + matchCountV]))
 				{
 					++matchCountV;
 				}
@@ -191,14 +211,14 @@ public class MatchGrid : MonoBehaviour
 		// remove matching slots
 		foreach (Vector2Int coord in slotsToRemove)
 		{
-			if (m_slots[coord.x][coord.y] == null)
+			if (m_slots[coord.x, coord.y] == null)
 			{
 				// TODO: this slot must've been involved in intersecting matches; replace w/ special slot item?
 			}
 			else
 			{
-				m_slots[coord.x][coord.y].StartDespawn();
-				m_slots[coord.x][coord.y] = null;
+				m_slots[coord.x, coord.y].StartDespawn();
+				m_slots[coord.x, coord.y] = null;
 			}
 		}
 
@@ -216,7 +236,7 @@ public class MatchGrid : MonoBehaviour
 				int numHoles = 0;
 				for (int j = 0; j < m_height; ++j)
 				{
-					if (m_slots[i][j] == null)
+					if (m_slots[i, j] == null)
 					{
 						++numHoles;
 					}

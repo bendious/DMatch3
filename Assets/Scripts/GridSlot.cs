@@ -37,8 +37,8 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		m_grid = GetComponentInParent<MatchGrid>();
 
 		m_size = GetComponent<RectTransform>().rect.size;
-		Vector3 posOrig = transform.position;
-		transform.position += new Vector3(0.0f, Screen.height);
+		Vector3 posOrig = transform.localPosition;
+		transform.localPosition += new Vector3(0.0f, Screen.height);
 		SetHomePosition(posOrig, false);
 
 		m_spriteIdx = Random.Range(0, m_spriteFilepaths.Length);
@@ -97,7 +97,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	private IEnumerator LerpHome(bool smooth)
 	{
-		Debug.Assert(smooth || (transform.position.x == m_homePos.x && transform.position.z == m_homePos.z), "Non-smooth lerping must be purely vertical.");
+		Debug.Assert(smooth || (Mathf.Approximately(transform.localPosition.x, m_homePos.x) && Mathf.Approximately(transform.localPosition.z, m_homePos.z)), "Non-smooth lerping must be purely vertical.");
 		if (IsLerping)
 		{
 			yield break;
@@ -110,19 +110,19 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		}
 
 		Vector3 vel = Vector3.zero; // TODO: estimate release velocity?
-		float lerpTime = m_lerpTimePerDistance * (m_homePos - transform.position).magnitude;
+		float lerpTime = m_lerpTimePerDistance * (m_homePos - transform.localPosition).magnitude;
 
-		while ((transform.position - m_homePos).sqrMagnitude > m_lerpEpsilonSq || vel.magnitude > m_lerpEpsilon)
+		while ((transform.localPosition - m_homePos).sqrMagnitude > m_lerpEpsilonSq || vel.magnitude > m_lerpEpsilon)
 		{
 			if (smooth)
 			{
-				transform.position = new(Mathf.SmoothDamp(transform.position.x, m_homePos.x, ref vel.x, lerpTime), Mathf.SmoothDamp(transform.position.y, m_homePos.y, ref vel.y, lerpTime));
+				transform.localPosition = new(Mathf.SmoothDamp(transform.localPosition.x, m_homePos.x, ref vel.x, lerpTime), Mathf.SmoothDamp(transform.localPosition.y, m_homePos.y, ref vel.y, lerpTime));
 			}
 			else
 			{
-				vel += (transform.position.y > m_homePos.y) ? (Vector3)Physics2D.gravity : -(Vector3)Physics2D.gravity;
-				transform.position += vel * Time.deltaTime; // TODO: fixed timestep?
-				if (transform.position.y <= m_homePos.y)
+				vel += (transform.localPosition.y > m_homePos.y) ? (Vector3)Physics2D.gravity : -(Vector3)Physics2D.gravity;
+				transform.localPosition += vel * Time.deltaTime; // TODO: fixed timestep
+				if (transform.localPosition.y <= m_homePos.y)
 				{
 					vel = m_bounceScalarBase * Random.Range(1.0f - m_bounceScalarVariance, 1.0f + m_bounceScalarVariance) * new Vector3(vel.x, Mathf.Abs(vel.y));
 					// TODO: bounce SFX
@@ -131,7 +131,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 			yield return null;
 		}
-		transform.position = m_homePos;
+		transform.localPosition = m_homePos;
 
 		IsLerping = false;
 	}
