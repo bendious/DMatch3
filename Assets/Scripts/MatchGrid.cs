@@ -12,7 +12,7 @@ public class MatchGrid : MonoBehaviour
 	[SerializeField] private int m_spritesMin = 3; // TODO: base on grid size?
 	[SerializeField] private int m_spritesMax = 5;
 	[SerializeField] private TMPro.TMP_Text m_scoreText;
-	[SerializeField] private float m_padding = 10.0f;
+	[SerializeField] private float m_padding = 0.0f;
 	[SerializeField] private float m_recursiveMatchDelay = 0.5f;
 
 	private int m_width = 3;
@@ -24,14 +24,16 @@ public class MatchGrid : MonoBehaviour
 	private float m_slotHeight;
 	private Vector3 m_cornerPos; // TODO: don't assume the root position will never change?
 
+	private DMatch3 m_game;
 	private GridSlot[][] m_slots;
 	private bool m_isProcessing = false;
 	private int m_score = 0;
 
 
-	public void SetSize(int width, int height)
+	public void Init(DMatch3 game, int width, int height)
 	{
-		Debug.Assert(m_slots == null && width >= 3 && height >= 3);
+		Debug.Assert(m_game == null && m_slots == null && width >= 3 && height >= 3);
+		m_game = game;
 		m_width = width;
 		m_height = height;
 	}
@@ -63,6 +65,10 @@ public class MatchGrid : MonoBehaviour
 		StartCoroutine(DelayedProcessMatches());
 	}
 
+	public IEnumerator GetOrLoadAnimatedTextures(string filepath, System.Action<List<UniGif.GifTexture>, int, int, int> callback)
+	{
+		yield return m_game.GetOrLoadAnimatedTextures(filepath, callback);
+	}
 
 	public GridSlot SlotAtPosition(Vector3 position)
 	{

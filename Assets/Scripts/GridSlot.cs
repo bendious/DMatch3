@@ -138,22 +138,27 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	private IEnumerator Animate(RawImage image, string sprite_filepath)
 	{
-		// TODO: avoid re-loading w/ each new GridSlot
+		// ensure we aren't visible while loading
+		image.enabled = false;
+
+		// load/set textures
 		List<UniGif.GifTexture> textureList = null;
-		yield return UniGif.GetTextureListCoroutine(System.IO.File.ReadAllBytes(sprite_filepath), (List<UniGif.GifTexture> textureListLoaded, int loopCount, int width, int height) =>
+		yield return m_grid.GetOrLoadAnimatedTextures(sprite_filepath, (List<UniGif.GifTexture> textureListLoaded, int loopCount, int width, int height) =>
 		{
 			textureList = textureListLoaded;
-			image.GetComponent<RectTransform>().sizeDelta = new(width, height);
+			image.GetComponent<RectTransform>().sizeDelta = new(width, height); // TODO: clamp size via scaling if user-created sprites are ever allowed...
 		});
+		image.enabled = true;
 		ImagesLoaded = true;
 
+		// flip through texture list
 		int i = 0;
-		WaitForSeconds wait = new(1.0f / 24.0f); // TODO: read from .gif?
 		while (isActiveAndEnabled)
 		{
-			image.texture = textureList[i].m_texture2d;
+			UniGif.GifTexture textureCur = textureList[i];
+			image.texture = textureCur.m_texture2d;
+			yield return new WaitForSeconds(textureCur.m_delaySec); // TODO: avoid re-creating waiter every time?
 			i = (i + 1) % textureList.Count;
-			yield return wait;
 		}
 	}
 

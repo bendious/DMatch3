@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,12 +13,53 @@ public class DMatch3 : MonoBehaviour
 
 	private MatchGrid m_gridCurrent;
 
+	private class TextureInfo
+	{
+		public TextureInfo(string filepath) { m_filepath = filepath; }
+		public readonly string m_filepath;
+		public List<UniGif.GifTexture> m_textures = null;
+		public int m_width;
+		public int m_height;
+	}
+	private readonly List<TextureInfo> m_loadedTextures = new();
+
 
 	private void Start()
 	{
 		Restart();
 	}
 
+
+	public System.Collections.IEnumerator GetOrLoadAnimatedTextures(string filepath, System.Action<List<UniGif.GifTexture>, int, int, int> callback)
+	{
+		// check already-loaded/loading entries
+		TextureInfo entry = m_loadedTextures.Find(pair => pair.m_filepath == filepath);
+		if (entry != null)
+		{
+			// wait if in-progress
+			if (entry.m_textures == null)
+			{
+				yield return new WaitUntil(() => entry.m_textures != null);
+			}
+		}
+		else
+		{
+			// add new entry first to prevent missing in-progress loads
+			entry = new(filepath);
+			m_loadedTextures.Add(entry);
+
+			// load
+			yield return UniGif.GetTextureListCoroutine(System.IO.File.ReadAllBytes(filepath), (List<UniGif.GifTexture> textureList, int loopCount, int width, int height) =>
+			{
+				entry.m_textures = textureList;
+				entry.m_width = width;
+				entry.m_height = height;
+			});
+		}
+
+		// notify
+		callback(entry.m_textures, 0, entry.m_width, entry.m_height);
+	}
 
 	public void Restart()
 	{
@@ -26,6 +68,6 @@ public class DMatch3 : MonoBehaviour
 			Destroy(m_gridCurrent.gameObject);
 		}
 		m_gridCurrent = Instantiate(m_gridPrefab, gameObject.transform);
-		m_gridCurrent.SetSize(Random.Range(m_gridSizeMin, m_gridSizeMax + 1), Random.Range(m_gridSizeMin, m_gridSizeMax + 1));
+		m_gridCurrent.Init(this, Random.Range(m_gridSizeMin, m_gridSizeMax + 1), Random.Range(m_gridSizeMin, m_gridSizeMax + 1));
 	}
 }

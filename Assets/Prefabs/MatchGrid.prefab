@@ -54,7 +54,7 @@ MonoBehaviour:
   m_spritesMin: 3
   m_spritesMax: 5
   m_scoreText: {fileID: 3850458415529319050}
-  m_padding: 10
+  m_padding: 0
   m_recursiveMatchDelay: 0.5
 --- !u!1 &7758964726128321075
 GameObject:
