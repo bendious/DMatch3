@@ -9,7 +9,6 @@ public class MatchGrid : MonoBehaviour
 	const int m_matchLen = 3;
 
 	[SerializeField] private GridSlot m_slotPrefab;
-	[SerializeField] private Sprite[] m_sprites;
 	[SerializeField] private int m_spritesMin = 3; // TODO: base on grid size?
 	[SerializeField] private int m_spritesMax = 5;
 	[SerializeField] private TMPro.TMP_Text m_scoreText;
@@ -19,7 +18,7 @@ public class MatchGrid : MonoBehaviour
 	private int m_width = 3;
 	private int m_height = 3;
 
-	private Sprite[] m_spritesCurrent;
+	private string[] m_spriteFilepathsCurrent;
 
 	private float m_slotWidth;
 	private float m_slotHeight;
@@ -40,7 +39,8 @@ public class MatchGrid : MonoBehaviour
 
 	private void Start()
 	{
-		m_spritesCurrent = m_sprites.OrderBy(i => Random.value).Take(Random.Range(m_spritesMin, m_spritesMax)).ToArray();
+		// TODO: avoid re-getting w/ each new grid?
+		m_spriteFilepathsCurrent = System.IO.Directory.GetFiles(Application.streamingAssetsPath, "*.gif").OrderBy(i => Random.value).Take(Random.Range(m_spritesMin, m_spritesMax)).ToArray();
 
 		RectTransform tf = m_slotPrefab.GetComponent<RectTransform>();
 		Rect rect = tf.rect;
@@ -128,7 +128,7 @@ public class MatchGrid : MonoBehaviour
 	{
 		Debug.Assert(m_slots[x][y] == null);
 		m_slots[x][y] = Instantiate(m_slotPrefab, m_cornerPos + new Vector3(x * m_slotWidth, y * m_slotHeight), gameObject.transform.rotation, gameObject.transform);
-		m_slots[x][y].m_sprites = m_spritesCurrent;
+		m_slots[x][y].m_spriteFilepaths = m_spriteFilepathsCurrent;
 	}
 
 	private IEnumerator ProcessMatches()

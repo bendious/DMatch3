@@ -1,13 +1,14 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 
-[RequireComponent(typeof(Image))]
+[RequireComponent(typeof(RawImage))]
 public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-	public Sprite[] m_sprites { private get; set; }
+	public string[] m_spriteFilepaths { private get; set; }
 
 	[SerializeField] private float m_bounceScalarBase = 0.5f;
 	[SerializeField] private float m_bounceScalarVariance = 0.1f;
@@ -38,8 +39,9 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		transform.position += new Vector3(0.0f, Screen.height);
 		SetHomePosition(posOrig, false);
 
-		m_spriteIdx = Random.Range(0, m_sprites.Length);
-		GetComponent<Image>().sprite = m_sprites[m_spriteIdx];
+		m_spriteIdx = Random.Range(0, m_spriteFilepaths.Length);
+		RawImage image = GetComponent<RawImage>();
+		StartCoroutine(Animate(image, m_spriteFilepaths[m_spriteIdx]));
 	}
 
 	public void OnPointerEnter(PointerEventData eventData)
@@ -125,6 +127,26 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		transform.position = m_homePos;
 
 		m_lerping = false;
+	}
+
+	private IEnumerator Animate(RawImage image, string sprite_filepath)
+	{
+		// TODO: avoid re-loading w/ each new GridSlot
+		List<UniGif.GifTexture> textureList = null;
+		yield return UniGif.GetTextureListCoroutine(System.IO.File.ReadAllBytes(sprite_filepath), (List<UniGif.GifTexture> textureListLoaded, int loopCount, int width, int height) =>
+		{
+			textureList = textureListLoaded;
+			image.GetComponent<RectTransform>().sizeDelta = new(width, height);
+		});
+
+		int i = 0;
+		WaitForSeconds wait = new(1.0f / 24.0f); // TODO: read from .gif?
+		while (isActiveAndEnabled)
+		{
+			image.texture = textureList[i].m_texture2d;
+			i = (i + 1) % textureList.Count;
+			yield return wait;
+		}
 	}
 
 	private IEnumerator Despawn()
