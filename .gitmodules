@@ -1,0 +1,3 @@
+[submodule "UniGif"]
+	path = Assets/UniGif
+	url = https://github.com/WestHillApps/UniGif.git
