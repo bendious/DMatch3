@@ -54,7 +54,7 @@ public class DMatch3 : MonoBehaviour
 				entry.m_textures = textureList;
 				entry.m_width = width;
 				entry.m_height = height;
-			});
+			}, FilterMode.Point);
 		}
 
 		// notify

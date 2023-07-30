@@ -13,6 +13,9 @@ using UnityEngine;
 
 public static partial class UniGif
 {
+    private static readonly List<Color32[]> perFramePixels = new();
+
+
     /// <summary>
     /// Decode to textures from GIF data
     /// </summary>
@@ -23,6 +26,8 @@ public static partial class UniGif
     /// <returns>IEnumerator</returns>
     private static IEnumerator DecodeTextureCoroutine(GifData gifData, Action<List<GifTexture>> callback, FilterMode filterMode, TextureWrapMode wrapMode)
     {
+        perFramePixels.Clear(); // Justin Case
+
         if (gifData.m_imageBlockList == null || gifData.m_imageBlockList.Count < 1)
         {
             yield break;
@@ -46,23 +51,25 @@ public static partial class UniGif
             Color32 bgColor;
             List<byte[]> colorTable = GetColorTableAndSetBgColor(gifData, gifData.m_imageBlockList[i], transparentIndex, out bgColor);
 
-            yield return 0;
+            //yield return 0;
 
             bool filledTexture;
-            Texture2D tex = CreateTexture2D(gifData, gifTexList, imgIndex, disposalMethodList, bgColor, filterMode, wrapMode, out filledTexture);
+            Texture2D tex = CreateTexture2D(gifData, gifTexList, imgIndex, disposalMethodList, bgColor, filterMode, wrapMode, out filledTexture, out Color32[] pixels);
 
-            yield return 0;
+            //yield return 0;
 
             // Set pixel data
             int dataIndex = 0;
             // Reverse set pixels. because GIF data starts from the top left.
             for (int y = tex.height - 1; y >= 0; y--)
             {
-                SetTexturePixelRow(tex, y, gifData.m_imageBlockList[i], decodedData, ref dataIndex, colorTable, bgColor, transparentIndex, filledTexture);
+                SetTexturePixelRow(tex, y, gifData.m_imageBlockList[i], decodedData, ref dataIndex, colorTable, bgColor, transparentIndex, filledTexture, ref pixels);
             }
+            tex.SetPixels32(pixels);
+            perFramePixels.Add(pixels);
             tex.Apply();
 
-            yield return 0;
+            //yield return 0;
 
             float delaySec = GetDelaySec(graphicCtrlEx);
 
@@ -71,6 +78,8 @@ public static partial class UniGif
 
             imgIndex++;
         }
+
+        perFramePixels.Clear(); // so as not to hold on to memory unnecessarily
 
         if (callback != null)
         {
@@ -120,7 +129,7 @@ public static partial class UniGif
         {
             // Set background color from color table
             byte[] bgRgb = colorTable[gifData.m_bgColorIndex];
-            bgColor = new Color32(bgRgb[0], bgRgb[1], bgRgb[2], (byte)(transparentIndex == gifData.m_bgColorIndex ? 0 : 255));
+            bgColor = new Color32(bgRgb[0], bgRgb[1], bgRgb[2], (byte)(/*transparentIndex == gifData.m_bgColorIndex*/true ? 0 : 255)); // NOTE hacked alpha to prevent background flicker artifacts
         }
         else
         {
@@ -180,9 +189,10 @@ public static partial class UniGif
     /// <summary>
     /// Create Texture2D object and initial settings
     /// </summary>
-    private static Texture2D CreateTexture2D(GifData gifData, List<GifTexture> gifTexList, int imgIndex, List<ushort> disposalMethodList, Color32 bgColor, FilterMode filterMode, TextureWrapMode wrapMode, out bool filledTexture)
+    private static Texture2D CreateTexture2D(GifData gifData, List<GifTexture> gifTexList, int imgIndex, List<ushort> disposalMethodList, Color32 bgColor, FilterMode filterMode, TextureWrapMode wrapMode, out bool filledTexture, out Color32[] pixels)
     {
         filledTexture = false;
+        pixels = null;
 
         // Create texture
         Texture2D tex = new Texture2D(gifData.m_logicalScreenWidth, gifData.m_logicalScreenHeight, TextureFormat.ARGB32, false);
@@ -205,13 +215,11 @@ public static partial class UniGif
         {
             // 2 (Restore to background color)
             filledTexture = true;
-            Color32[] pix = new Color32[tex.width * tex.height];
-            for (int i = 0; i < pix.Length; i++)
+            pixels = new Color32[tex.width * tex.height];
+            for (int i = 0; i < pixels.Length; i++)
             {
-                pix[i] = bgColor;
+                pixels[i] = bgColor;
             }
-            tex.SetPixels32(pix);
-            tex.Apply();
         }
         else if (disposalMethod == 3)
         {
@@ -229,9 +237,12 @@ public static partial class UniGif
         if (useBeforeIndex >= 0)
         {
             filledTexture = true;
-            Color32[] pix = gifTexList[useBeforeIndex].m_texture2d.GetPixels32();
-            tex.SetPixels32(pix);
-            tex.Apply();
+            pixels = new Color32[tex.width * tex.height];
+            for (int i = 0; i < pixels.Length; ++i) { pixels[i] = perFramePixels[useBeforeIndex][i]; }
+        }
+        else
+        {
+            pixels ??= new Color32[tex.width * tex.height];
         }
 
         return tex;
@@ -240,7 +251,7 @@ public static partial class UniGif
     /// <summary>
     /// Set texture pixel row
     /// </summary>
-    private static void SetTexturePixelRow(Texture2D tex, int y, ImageBlock imgBlock, byte[] decodedData, ref int dataIndex, List<byte[]> colorTable, Color32 bgColor, int transparentIndex, bool filledTexture)
+    private static void SetTexturePixelRow(Texture2D tex, int y, ImageBlock imgBlock, byte[] decodedData, ref int dataIndex, List<byte[]> colorTable, Color32 bgColor, int transparentIndex, bool filledTexture, ref Color32[] pixels)
     {
         // Row no (0~)
         int row = tex.height - 1 - y;
@@ -259,7 +270,7 @@ public static partial class UniGif
                 // Get pixel color from bg color
                 if (filledTexture == false)
                 {
-                    tex.SetPixel(x, y, bgColor);
+                    pixels[x + tex.width * y] = bgColor;
                 }
                 continue;
             }
@@ -269,7 +280,7 @@ public static partial class UniGif
             {
                 if (filledTexture == false)
                 {
-                    tex.SetPixel(x, y, bgColor);
+                    pixels[x + tex.width * y] = bgColor;
                     if (dataIndex == decodedData.Length)
                     {
                         Debug.LogError("dataIndex exceeded the size of decodedData. dataIndex:" + dataIndex + " decodedData.Length:" + decodedData.Length + " y:" + y + " x:" + x);
@@ -286,7 +297,7 @@ public static partial class UniGif
                 {
                     if (filledTexture == false)
                     {
-                        tex.SetPixel(x, y, bgColor);
+                        pixels[x + tex.width * y] = bgColor;
                         if (colorTable == null)
                         {
                             Debug.LogError("colorIndex exceeded the size of colorTable. colorTable is null. colorIndex:" + colorIndex);
@@ -308,7 +319,7 @@ public static partial class UniGif
                 {
                     // Set color
                     Color32 col = new Color32(rgb[0], rgb[1], rgb[2], alpha);
-                    tex.SetPixel(x, y, col);
+                    pixels[x + tex.width * y] = col;
                 }
             }
 
