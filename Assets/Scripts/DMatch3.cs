@@ -12,6 +12,7 @@ public class DMatch3 : MonoBehaviour
 
 
 	private MatchGrid m_gridCurrent;
+	private bool m_modeCurrent;
 
 	private class TextureInfo
 	{
@@ -68,6 +69,12 @@ public class DMatch3 : MonoBehaviour
 			Destroy(m_gridCurrent.gameObject);
 		}
 		m_gridCurrent = Instantiate(m_gridPrefab, gameObject.transform);
-		m_gridCurrent.Init(this, Random.Range(m_gridSizeMin, m_gridSizeMax + 1), Random.Range(m_gridSizeMin, m_gridSizeMax + 1));
+		m_gridCurrent.Init(this, m_modeCurrent, Random.Range(m_gridSizeMin, m_gridSizeMax + 1), Random.Range(m_gridSizeMin, m_gridSizeMax + 1));
+	}
+
+	public void ModeSwap()
+	{
+		m_modeCurrent = !m_modeCurrent;
+		Restart();
 	}
 }

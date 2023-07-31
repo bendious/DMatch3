@@ -50,6 +50,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9725343ce9c7f214cb43c676c7142a44, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_sprites:
+  - {fileID: 21300000, guid: 1a7e0e3419ba51f4cb309d9c44c06aa2, type: 3}
+  - {fileID: 21300000, guid: ca410ed2895935c419f1a515459eb163, type: 3}
+  - {fileID: 21300000, guid: 4fa76e04a66737b49860161a4f320507, type: 3}
+  - {fileID: 21300000, guid: f33e1e8228c862e4aabc93f0bad92c93, type: 3}
+  - {fileID: 21300000, guid: 0cc174382149606479c70c06a6bf62c2, type: 3}
+  - {fileID: 21300000, guid: e5b3910d0f363274d9d75db6102b4046, type: 3}
   m_slotPrefab: {fileID: 6104689561630229264, guid: 59660a87f0915a946a6b7d63d155a83a, type: 3}
   m_spritesMin: 3
   m_spritesMax: 5

@@ -27,6 +27,7 @@ public class MatchGrid : MonoBehaviour
 {
 	const int m_matchLen = 3;
 
+	[SerializeField] private Sprite[] m_sprites;
 	[SerializeField] private GridSlot m_slotPrefab;
 	[SerializeField] private int m_spritesMin = 3; // TODO: base on grid size?
 	[SerializeField] private int m_spritesMax = 5;
@@ -38,21 +39,24 @@ public class MatchGrid : MonoBehaviour
 	private int m_height = 3;
 
 	private string[] m_spriteFilepathsCurrent;
+	private Sprite[] m_spritesCurrent;
 
 	private float m_slotWidth;
 	private float m_slotHeight;
 	private Vector3 m_cornerPos; // TODO: don't assume the (local) position will never change?
 
 	private DMatch3 m_game;
+	private bool m_mode;
 	private GridSlot[,] m_slots;
 	private bool m_isProcessing = false;
 	private int m_score = 0;
 
 
-	public void Init(DMatch3 game, int width, int height)
+	public void Init(DMatch3 game, bool mode, int width, int height)
 	{
 		Debug.Assert(m_game == null && m_slots == null && width >= 3 && height >= 3);
 		m_game = game;
+		m_mode = mode;
 		m_width = width;
 		m_height = height;
 	}
@@ -60,8 +64,16 @@ public class MatchGrid : MonoBehaviour
 
 	private void Start()
 	{
-		// TODO: avoid re-getting w/ each new grid?
-		m_spriteFilepathsCurrent = System.IO.Directory.GetFiles(Application.streamingAssetsPath, "*.gif").OrderBy(i => Random.value).Take(Random.Range(m_spritesMin, m_spritesMax)).ToArray();
+		int spriteCount = Random.Range(m_spritesMin, m_spritesMax);
+		if (m_mode)
+		{
+			m_spritesCurrent = m_sprites.OrderBy(s => Random.value).Take(spriteCount).ToArray();
+		}
+		else
+		{
+			// TODO: avoid re-getting w/ each new grid?
+			m_spriteFilepathsCurrent = System.IO.Directory.GetFiles(Application.streamingAssetsPath, "*.gif").OrderBy(i => Random.value).Take(spriteCount).ToArray();
+		}
 
 		RectTransform tf = m_slotPrefab.GetComponent<RectTransform>();
 		Rect rect = tf.rect;
@@ -154,6 +166,7 @@ public class MatchGrid : MonoBehaviour
 		GridSlot newSlot = Instantiate(m_slotPrefab, gameObject.transform);
 		newSlot.transform.localPosition = PositionForCoord(x, y);
 		newSlot.m_spriteFilepaths = m_spriteFilepathsCurrent;
+		newSlot.m_sprites = m_spritesCurrent;
 		m_slots[x, y] = newSlot;
 	}
 

@@ -9,6 +9,7 @@ using UnityEngine.UI;
 public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
 	public string[] m_spriteFilepaths { private get; set; }
+	public Sprite[] m_sprites { private get; set; }
 
 	[SerializeField] private float m_bounceScalarBase = 0.5f;
 	[SerializeField] private float m_bounceScalarVariance = 0.1f;
@@ -41,9 +42,30 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		transform.localPosition += new Vector3(0.0f, Screen.height);
 		SetHomePosition(posOrig, false);
 
-		m_spriteIdx = Random.Range(0, m_spriteFilepaths.Length);
 		RawImage image = GetComponent<RawImage>();
-		StartCoroutine(Animate(image, m_spriteFilepaths[m_spriteIdx]));
+		if (m_spriteFilepaths != null && m_spriteFilepaths.Length > 0) // TODO: support mix-and-match?
+		{
+			m_spriteIdx = Random.Range(0, m_spriteFilepaths.Length);
+			StartCoroutine(Animate(image, m_spriteFilepaths[m_spriteIdx]));
+		}
+		else
+		{
+			Debug.Assert(m_sprites != null && m_sprites.Length > 0);
+			m_spriteIdx = Random.Range(0, m_sprites.Length);
+			image.texture = m_sprites[m_spriteIdx].texture; // TODO: support spritesheets?
+
+			// scale to avoid overlap
+			// TODO: helper function?
+			Vector2 newSize = new(image.texture.width, image.texture.height);
+			if (newSize.x > m_size.x || newSize.y > m_size.y)
+			{
+				Vector2 scale = m_size / newSize;
+				newSize *= Mathf.Min(scale.x, scale.y);
+			}
+			image.GetComponent<RectTransform>().sizeDelta = newSize;
+
+			ImagesLoaded = true;
+		}
 	}
 
 	public void OnPointerEnter(PointerEventData eventData)
