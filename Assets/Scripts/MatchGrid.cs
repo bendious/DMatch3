@@ -50,6 +50,7 @@ public class MatchGrid : MonoBehaviour
 	private GridSlot[,] m_slots;
 	private bool m_isProcessing = false;
 	private int m_score = 0;
+	private int m_lastSfxFrame = -1;
 
 
 	public void Init(DMatch3 game, bool mode, int width, int height)
@@ -114,6 +115,16 @@ public class MatchGrid : MonoBehaviour
 		}
 	}
 
+	public bool ShouldPlaySfxThisFrame()
+	{
+		if (m_lastSfxFrame != Time.frameCount)
+		{
+			m_lastSfxFrame = Time.frameCount;
+			return true;
+		}
+		return false;
+	}
+
 
 	private IEnumerator SwapInternal(Vector2Int coordStart, Vector2Int coordDiff, bool smooth)
 	{
@@ -148,7 +159,6 @@ public class MatchGrid : MonoBehaviour
 			StartCoroutine(ProcessMatches());
 		}
 	}
-
 
 	private Vector2Int CoordForPosition(Vector3 position)
 	{

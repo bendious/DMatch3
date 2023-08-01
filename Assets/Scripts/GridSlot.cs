@@ -5,14 +5,16 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 
-[RequireComponent(typeof(RawImage))]
+[RequireComponent(typeof(RawImage), typeof(AudioSource))]
 public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
 	public string[] m_spriteFilepaths { private get; set; }
 	public Sprite[] m_sprites { private get; set; }
 
-	[SerializeField] private float m_bounceScalarBase = 0.5f;
-	[SerializeField] private float m_bounceScalarVariance = 0.1f;
+	[SerializeField] private AudioClip[] m_bounceSfx;
+
+	[SerializeField] private float m_bounceScalarBase = 0.06f;
+	[SerializeField] private float m_bounceScalarVariance = 0.01f;
 
 	[SerializeField] private float m_lerpEpsilon = 1.0f;
 	[SerializeField] private float m_lerpTimePerDistance = 0.001f;
@@ -24,18 +26,22 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	public bool ImagesLoaded { get; private set; }
 
 
+	private AudioSource m_audioSource;
 	private MatchGrid m_grid;
 	private Vector2 m_size;
 	private int m_spriteIdx;
 
 	private Vector3 m_homePos;
 	private Vector3 m_dragStartPos;
+	private int m_bounceCount;
+
 
 	private void Start()
 	{
 		m_lerpEpsilonSq = m_lerpEpsilon * m_lerpEpsilon;
 
 		m_grid = GetComponentInParent<MatchGrid>();
+		m_audioSource = GetComponent<AudioSource>();
 
 		m_size = GetComponent<RectTransform>().rect.size;
 		Vector3 posOrig = transform.localPosition;
@@ -131,6 +137,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 			yield return new WaitUntil(() => ImagesLoaded);
 		}
 
+		m_bounceCount = 0;
 		Vector3 vel = Vector3.zero; // TODO: estimate release velocity?
 		float lerpTime = m_lerpTimePerDistance * (m_homePos - transform.localPosition).magnitude;
 
@@ -147,7 +154,17 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 				if (transform.localPosition.y <= m_homePos.y)
 				{
 					vel = m_bounceScalarBase * Random.Range(1.0f - m_bounceScalarVariance, 1.0f + m_bounceScalarVariance) * new Vector3(vel.x, Mathf.Abs(vel.y));
-					// TODO: bounce SFX
+
+					if (m_grid.ShouldPlaySfxThisFrame())
+					{
+						m_audioSource.PlayOneShot(m_bounceSfx[Mathf.Min(m_bounceSfx.Length - 1, m_bounceCount)]);
+					}
+
+					++m_bounceCount;
+					if (m_bounceCount >= m_bounceSfx.Length)
+					{
+						break;
+					}
 				}
 			}
 

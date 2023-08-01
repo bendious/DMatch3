@@ -6,6 +6,10 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Canvas), typeof(GraphicRaycaster))]
 public class DMatch3 : MonoBehaviour
 {
+	[SerializeField] private UnityEngine.Audio.AudioMixer m_audioMixer;
+	[SerializeField] private Slider m_volumeSlider;
+	[SerializeField] private string m_volumeParamName = "VolumeDB"; // TODO: split param names for prefs/slider since one is a percentage and the other in decibels?
+
 	[SerializeField] private MatchGrid m_gridPrefab;
 	[SerializeField] private int m_gridSizeMin = 3;
 	[SerializeField] private int m_gridSizeMax = 5;
@@ -27,6 +31,17 @@ public class DMatch3 : MonoBehaviour
 
 	private void Start()
 	{
+		if (PlayerPrefs.HasKey(m_volumeParamName))
+		{
+			// NOTE that setting m_slider.value will invoke SetVolume() via m_slider.onValueChanged
+			m_volumeSlider.value = PlayerPrefs.GetFloat(m_volumeParamName);
+		}
+		else
+		{
+			// set volume in case the slider default doesn't correspond to the volume default
+			SetVolume(m_volumeSlider.value);
+		}
+
 		Restart();
 	}
 
@@ -77,4 +92,13 @@ public class DMatch3 : MonoBehaviour
 		m_modeCurrent = !m_modeCurrent;
 		Restart();
 	}
+
+	public void SetVolume(float pctRaw)
+	{
+		m_audioMixer.SetFloat(m_volumeParamName, PercentToDecibels(pctRaw));
+		PlayerPrefs.SetFloat(m_volumeParamName, pctRaw);
+	}
+
+
+	private float PercentToDecibels(float pct) => Mathf.Log10(pct) * 20.0f; // for formula source, see https://johnleonardfrench.com/the-right-way-to-make-a-volume-slider-in-unity-using-logarithmic-conversion/
 }
