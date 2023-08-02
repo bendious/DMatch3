@@ -57,7 +57,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 20b6cc1b4516d3c4f81d9b8318784c19, type: 3}
   - {fileID: 8300000, guid: 51ceb1edda75ef64c8e010c41f796dc5, type: 3}
   - {fileID: 8300000, guid: 0288b8b5a91375144bb1e137561bfef0, type: 3}
-  m_bounceScalarBase: 0.6
+  m_bounceScalarBase: 0.5
   m_bounceScalarVariance: 0.01
   m_lerpEpsilon: 1
   m_lerpTimePerDistance: 0.001

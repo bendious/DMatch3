@@ -13,7 +13,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	[SerializeField] private AudioClip[] m_bounceSfx;
 
-	[SerializeField] private float m_bounceScalarBase = 0.06f;
+	[SerializeField] private float m_bounceScalarBase = 0.5f;
 	[SerializeField] private float m_bounceScalarVariance = 0.01f;
 
 	[SerializeField] private float m_lerpEpsilon = 1.0f;

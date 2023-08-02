@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 
 public static class ExtensionHelpers
@@ -29,8 +30,10 @@ public class MatchGrid : MonoBehaviour
 
 	[SerializeField] private Sprite[] m_sprites;
 	[SerializeField] private GridSlot m_slotPrefab;
-	[SerializeField] private int m_spritesMin = 3; // TODO: base on grid size?
-	[SerializeField] private int m_spritesMax = 5;
+	[SerializeField] private int m_sizeMin = 3;
+	[SerializeField] private int m_sizeMax = 10;
+	[SerializeField] private int m_spritesMin = 3;
+	[SerializeField] private int m_spritesMax = 6;
 	[SerializeField] private TMPro.TMP_Text m_scoreText;
 	[SerializeField] private float m_padding = 0.0f;
 	[SerializeField] private float m_recursiveMatchDelay = 0.5f;
@@ -53,19 +56,35 @@ public class MatchGrid : MonoBehaviour
 	private int m_lastSfxFrame = -1;
 
 
-	public void Init(DMatch3 game, bool mode, int width, int height)
+	public void Init(DMatch3 game, bool mode)
 	{
-		Debug.Assert(m_game == null && m_slots == null && width >= 3 && height >= 3);
+		Debug.Assert(m_game == null && m_slots == null);
 		m_game = game;
 		m_mode = mode;
-		m_width = width;
-		m_height = height;
 	}
 
 
 	private void Start()
 	{
-		int spriteCount = Random.Range(m_spritesMin, m_spritesMax);
+		// slot size
+		RectTransform tf = m_slotPrefab.GetComponent<RectTransform>();
+		Rect rect = tf.rect;
+		m_slotWidth = rect.width + m_padding;
+		m_slotHeight = rect.height + m_padding;
+
+		// grid size
+		m_width = Random.Range(m_sizeMin, m_sizeMax + 1);
+		m_height = Random.Range(m_sizeMin, m_sizeMax + 1);
+		float totalWidth = m_slotWidth * m_width;
+		float totalHeight = m_slotHeight * m_height;
+		m_cornerPos = gameObject.transform.localPosition + new Vector3((m_slotWidth - totalWidth) * 0.5f, (m_slotHeight - totalHeight) * 0.5f);
+
+		// scaling
+		StartCoroutine(FitToScreen());
+
+		// sprite selection
+		float slotScale = (m_width * m_height) / (float)(m_sizeMax * m_sizeMax);
+		int spriteCount = Mathf.RoundToInt(Mathf.Lerp(m_spritesMin, m_spritesMax, slotScale));
 		if (m_mode)
 		{
 			m_spritesCurrent = m_sprites.OrderBy(s => Random.value).Take(spriteCount).ToArray();
@@ -76,14 +95,7 @@ public class MatchGrid : MonoBehaviour
 			m_spriteFilepathsCurrent = System.IO.Directory.GetFiles(Application.streamingAssetsPath, "*.gif").OrderBy(i => Random.value).Take(spriteCount).ToArray();
 		}
 
-		RectTransform tf = m_slotPrefab.GetComponent<RectTransform>();
-		Rect rect = tf.rect;
-		m_slotWidth = rect.width + m_padding;
-		m_slotHeight = rect.height + m_padding;
-		float totalWidth = m_slotWidth * m_width;
-		float totalHeight = m_slotHeight * m_height;
-		m_cornerPos = gameObject.transform.localPosition + new Vector3((m_slotWidth - totalWidth) * 0.5f, (m_slotHeight - totalHeight) * 0.5f);
-
+		// slot construction
 		m_slots = new GridSlot[m_width, m_height];
 		for (int i = 0; i < m_width; i++)
 		{
@@ -178,6 +190,22 @@ public class MatchGrid : MonoBehaviour
 		newSlot.m_spriteFilepaths = m_spriteFilepathsCurrent;
 		newSlot.m_sprites = m_spritesCurrent;
 		m_slots[x, y] = newSlot;
+	}
+
+	public IEnumerator FitToScreen()
+	{
+		Vector2Int screenSize = new(Screen.width, Screen.height);
+		CanvasScaler scaler = GetComponentInParent<CanvasScaler>();
+		WaitUntil wait = new(() => screenSize.x != Screen.width || screenSize.y != Screen.height);
+		while (isActiveAndEnabled)
+		{
+			screenSize = new(Screen.width, Screen.height);
+			float totalWidth = m_slotWidth * m_width;
+			float totalHeight = m_slotHeight * m_height;
+			float renderScale = Mathf.Min(screenSize.x / totalWidth, screenSize.y / totalHeight);
+			scaler.scaleFactor = renderScale;
+			yield return wait;
+		}
 	}
 
 	private IEnumerator DelayedProcessMatches()
