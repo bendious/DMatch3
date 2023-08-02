@@ -34,6 +34,7 @@ public class MatchGrid : MonoBehaviour
 	[SerializeField] private int m_sizeMax = 10;
 	[SerializeField] private int m_spritesMin = 3;
 	[SerializeField] private int m_spritesMax = 6;
+	[SerializeField] private TMPro.TMP_Text m_moveCountText;
 	[SerializeField] private TMPro.TMP_Text m_scoreText;
 	[SerializeField] private float m_padding = 0.0f;
 	[SerializeField] private float m_recursiveMatchDelay = 0.5f;
@@ -52,6 +53,7 @@ public class MatchGrid : MonoBehaviour
 	private bool m_mode;
 	private GridSlot[,] m_slots;
 	private bool m_isProcessing = false;
+	private int m_moveCount = 0;
 	private int m_score = 0;
 	private int m_lastSfxFrame = -1;
 
@@ -123,6 +125,8 @@ public class MatchGrid : MonoBehaviour
 	{
 		if (!m_isProcessing)
 		{
+			++m_moveCount;
+			m_moveCountText.text = m_moveCount.ToString();
 			StartCoroutine(SwapInternal(CoordForPosition(homePos), Mathf.Abs(diff.x) >= Mathf.Abs(diff.y) ? new Vector2Int((int)Mathf.Sign(diff.x), 0) : new Vector2Int(0, (int)Mathf.Sign(diff.y)), true));
 		}
 	}
