@@ -19,11 +19,12 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	[SerializeField] private float m_lerpEpsilon = 1.0f;
 	[SerializeField] private float m_lerpTimePerDistance = 0.001f;
 	private float m_lerpEpsilonSq;
-	[SerializeField] private float m_despawnAccel = 0.2f;
+	[SerializeField] private float m_despawnAccel = 2.0f;
 
 
 	public bool IsLerping { get; private set; }
 	public bool ImagesLoaded { get; private set; }
+	public bool IsDespawning { get; private set; }
 
 
 	private AudioSource m_audioSource;
@@ -34,6 +35,11 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	private Vector3 m_homePos;
 	private Vector3 m_dragStartPos;
 	private int m_bounceCount;
+	private float m_lerpTime;
+	private Vector3 m_lerpVel;
+	private bool m_smoothLerp;
+
+	private float m_despawnVel = 0.0f;
 
 
 	private void Start()
@@ -74,6 +80,54 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		}
 	}
 
+	private void FixedUpdate()
+	{
+		if (IsDespawning)
+		{
+			m_despawnVel += m_despawnAccel * Time.fixedDeltaTime;
+			float newScale = Mathf.Max(0.0f, transform.localScale.x - m_despawnVel);
+			transform.localScale = new(newScale, newScale, newScale);
+			if (newScale <= 0.0f)
+			{
+				Destroy(gameObject);
+			}
+		}
+
+		if (!IsLerping || !ImagesLoaded)
+		{
+			return;
+		}
+
+		if (m_smoothLerp)
+		{
+			transform.localPosition = new(Mathf.SmoothDamp(transform.localPosition.x, m_homePos.x, ref m_lerpVel.x, m_lerpTime), Mathf.SmoothDamp(transform.localPosition.y, m_homePos.y, ref m_lerpVel.y, m_lerpTime));
+		}
+		else
+		{
+			m_lerpVel += (transform.localPosition.y > m_homePos.y) ? (Vector3)Physics2D.gravity : -(Vector3)Physics2D.gravity;
+			transform.localPosition += m_lerpVel * Time.fixedDeltaTime;
+			if (transform.localPosition.y <= m_homePos.y)
+			{
+				m_lerpVel = m_bounceScalarBase * Random.Range(1.0f - m_bounceScalarVariance, 1.0f + m_bounceScalarVariance) * new Vector3(m_lerpVel.x, Mathf.Abs(m_lerpVel.y));
+
+				if (m_grid.ShouldPlaySfxThisFrame())
+				{
+					m_audioSource.PlayOneShot(m_bounceSfx[Mathf.Min(m_bounceSfx.Length - 1, m_bounceCount)]);
+				}
+
+				++m_bounceCount;
+			}
+		}
+
+		if (m_bounceCount >= m_bounceSfx.Length || ((transform.localPosition - m_homePos).sqrMagnitude <= m_lerpEpsilonSq && m_lerpVel.magnitude <= m_lerpEpsilon))
+		{
+			m_lerpVel = Vector3.zero;
+			transform.localPosition = m_homePos;
+			IsLerping = false;
+		}
+	}
+
+
 	public void OnPointerEnter(PointerEventData eventData)
 	{
 		// TODO: restart animation? grow?
@@ -102,7 +156,7 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	public void OnEndDrag(PointerEventData eventData)
 	{
-		StartCoroutine(LerpHome(true));
+		LerpHome(true);
 	}
 
 	public void SwapWith(GridSlot replaceSlot)
@@ -114,65 +168,27 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
 	public bool Matches(GridSlot other) => other != null && m_spriteIdx == other.m_spriteIdx;
 
-	public Coroutine SetHomePosition(Vector3 position, bool smooth)
+	public void SetHomePosition(Vector3 position, bool smooth)
 	{
 		m_homePos = position;
-		return StartCoroutine(LerpHome(smooth));
+		LerpHome(smooth);
 	}
 
-	public void StartDespawn() => StartCoroutine(Despawn());
+	public void StartDespawn() => IsDespawning = true;
 
 
-	private IEnumerator LerpHome(bool smooth)
+	private void LerpHome(bool smooth)
 	{
 		Debug.Assert(smooth || (Mathf.Approximately(transform.localPosition.x, m_homePos.x) && Mathf.Approximately(transform.localPosition.z, m_homePos.z)), "Non-smooth lerping must be purely vertical.");
 		if (IsLerping)
 		{
-			yield break;
+			return;
 		}
-		IsLerping = true;
-
-		if (!ImagesLoaded)
-		{
-			yield return new WaitUntil(() => ImagesLoaded);
-		}
-
 		m_bounceCount = 0;
-		Vector3 vel = Vector3.zero; // TODO: estimate release velocity?
-		float lerpTime = m_lerpTimePerDistance * (m_homePos - transform.localPosition).magnitude;
-
-		while ((transform.localPosition - m_homePos).sqrMagnitude > m_lerpEpsilonSq || vel.magnitude > m_lerpEpsilon)
-		{
-			if (smooth)
-			{
-				transform.localPosition = new(Mathf.SmoothDamp(transform.localPosition.x, m_homePos.x, ref vel.x, lerpTime), Mathf.SmoothDamp(transform.localPosition.y, m_homePos.y, ref vel.y, lerpTime));
-			}
-			else
-			{
-				vel += (transform.localPosition.y > m_homePos.y) ? (Vector3)Physics2D.gravity : -(Vector3)Physics2D.gravity;
-				transform.localPosition += vel * Time.deltaTime; // TODO: fixed timestep
-				if (transform.localPosition.y <= m_homePos.y)
-				{
-					vel = m_bounceScalarBase * Random.Range(1.0f - m_bounceScalarVariance, 1.0f + m_bounceScalarVariance) * new Vector3(vel.x, Mathf.Abs(vel.y));
-
-					if (m_grid.ShouldPlaySfxThisFrame())
-					{
-						m_audioSource.PlayOneShot(m_bounceSfx[Mathf.Min(m_bounceSfx.Length - 1, m_bounceCount)]);
-					}
-
-					++m_bounceCount;
-					if (m_bounceCount >= m_bounceSfx.Length)
-					{
-						break;
-					}
-				}
-			}
-
-			yield return null;
-		}
-		transform.localPosition = m_homePos;
-
-		IsLerping = false;
+		m_lerpVel = Vector3.zero; // TODO: estimate release velocity?
+		m_lerpTime = m_lerpTimePerDistance * (m_homePos - transform.localPosition).magnitude;
+		m_smoothLerp = smooth;
+		IsLerping = true;
 	}
 
 	private IEnumerator Animate(RawImage image, string sprite_filepath)
@@ -199,18 +215,5 @@ public class GridSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 			yield return new WaitForSeconds(textureCur.m_delaySec); // TODO: avoid re-creating waiter every time?
 			i = (i + 1) % textureList.Count;
 		}
-	}
-
-	private IEnumerator Despawn()
-	{
-		float vel = 0.0f;
-		while (transform.localScale.x > 0.0f) // TODO: don't assume uniform scaling?
-		{
-			vel += m_despawnAccel * Time.deltaTime;
-			float newScale = Mathf.Max(0.0f, transform.localScale.x - vel);
-			transform.localScale = new(newScale, newScale, newScale);
-			yield return null;
-		}
-		Destroy(gameObject);
 	}
 }

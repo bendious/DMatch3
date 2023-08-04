@@ -152,23 +152,23 @@ public class MatchGrid : MonoBehaviour
 		}
 
 		// notify slots
-		List<Coroutine> coroutines = new();
+		List<GridSlot> affectedSlots = new();
 		if (m_slots[coordStart.x, coordStart.y] != null)
 		{
-			coroutines.Add(m_slots[coordStart.x, coordStart.y].SetHomePosition(PositionForCoord(coordEnd.x, coordEnd.y), smooth));
+			affectedSlots.Add(m_slots[coordStart.x, coordStart.y]);
+			m_slots[coordStart.x, coordStart.y].SetHomePosition(PositionForCoord(coordEnd.x, coordEnd.y), smooth);
 		}
 		if (m_slots[coordEnd.x, coordEnd.y] != null)
 		{
-			coroutines.Add(m_slots[coordEnd.x, coordEnd.y].SetHomePosition(PositionForCoord(coordStart.x, coordStart.y), smooth));
+			affectedSlots.Add(m_slots[coordEnd.x, coordEnd.y]);
+			m_slots[coordEnd.x, coordEnd.y].SetHomePosition(PositionForCoord(coordStart.x, coordStart.y), smooth);
 		}
 
 		// swap internally
 		(m_slots[coordEnd.x, coordEnd.y], m_slots[coordStart.x, coordStart.y]) = (m_slots[coordStart.x, coordStart.y], m_slots[coordEnd.x, coordEnd.y]);
 
-		foreach (Coroutine c in coroutines)
-		{
-			yield return c;
-		}
+		// wait until finished
+		yield return new WaitUntil(() => affectedSlots.All(slot => !slot.IsLerping));
 
 		if (smooth) // NOTE that this corresponds to when triggered by the player rather than by recursive matches; ProcessMatches() contains a delayed recursive invocation that takes care of that
 		{

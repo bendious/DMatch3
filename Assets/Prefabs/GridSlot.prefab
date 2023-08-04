@@ -61,7 +61,7 @@ MonoBehaviour:
   m_bounceScalarVariance: 0.01
   m_lerpEpsilon: 1
   m_lerpTimePerDistance: 0.001
-  m_despawnAccel: 0.2
+  m_despawnAccel: 2
 --- !u!222 &1297778930733149339
 CanvasRenderer:
   m_ObjectHideFlags: 0
