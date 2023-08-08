@@ -93,8 +93,8 @@ public class MatchGrid : MonoBehaviour
 		}
 		else
 		{
-			// TODO: avoid re-getting w/ each new grid?
-			m_spriteFilepathsCurrent = System.IO.Directory.GetFiles(Application.streamingAssetsPath, "*.gif").OrderBy(i => Random.value).Take(spriteCount).ToArray();
+			// this is done like this to avoid Directory listing not working in web builds
+			m_spriteFilepathsCurrent = GifList.Filenames.OrderBy(i => Random.value).Take(spriteCount).ToArray();
 		}
 
 		// slot construction

@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Networking;
 using UnityEngine.UI;
 
 
@@ -44,7 +46,7 @@ public class DMatch3 : MonoBehaviour
 	}
 
 
-	public System.Collections.IEnumerator GetOrLoadAnimatedTextures(string filepath, System.Action<List<UniGif.GifTexture>, int, int, int> callback)
+	public IEnumerator GetOrLoadAnimatedTextures(string filepath, System.Action<List<UniGif.GifTexture>, int, int, int> callback)
 	{
 		// check already-loaded/loading entries
 		TextureInfo entry = m_loadedTextures.Find(pair => pair.m_filepath == filepath);
@@ -63,7 +65,9 @@ public class DMatch3 : MonoBehaviour
 			m_loadedTextures.Add(entry);
 
 			// load
-			yield return UniGif.GetTextureListCoroutine(System.IO.File.ReadAllBytes(filepath), (List<UniGif.GifTexture> textureList, int loopCount, int width, int height) =>
+			byte[] file_bytes = null;
+			yield return FileReadAllBytes(filepath, returned_bytes => file_bytes = returned_bytes);
+			yield return UniGif.GetTextureListCoroutine(file_bytes, (List<UniGif.GifTexture> textureList, int loopCount, int width, int height) =>
 			{
 				entry.m_textures = textureList;
 				entry.m_width = width;
@@ -97,6 +101,16 @@ public class DMatch3 : MonoBehaviour
 		PlayerPrefs.SetFloat(m_volumeParamName, pctRaw);
 	}
 
+
+	private IEnumerator FileReadAllBytes(string filename, System.Action<byte[]> callback)
+	{
+		// NOTE that we could use System.IO for non-web builds, but since WebRequest also works for local files, we just stick to it always for simplicity and ease of testing
+		string finalPath = Application.streamingAssetsPath + System.IO.Path.DirectorySeparatorChar + filename;
+		Debug.Log("Reading file " + finalPath);
+		using UnityWebRequest request = UnityWebRequest.Get(finalPath);
+		yield return request.SendWebRequest();
+		callback(request.downloadHandler.data);
+	}
 
 	private float PercentToDecibels(float pct) => Mathf.Log10(pct) * 20.0f; // for formula source, see https://johnleonardfrench.com/the-right-way-to-make-a-volume-slider-in-unity-using-logarithmic-conversion/
 }
