@@ -487,3 +487,4 @@ Build.app
 .~lock*#
 *.zip
 Backup.meta
+!Build
